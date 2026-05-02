@@ -1,23 +1,22 @@
 const express = require("express");
-const multer = require("multer");
 const router = express.Router();
 const noticeController = require("../controllers/noticeController");
 
-// --- MULTER SETUP (Same as before) ---
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/");
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + file.originalname.replace(/\s+/g, '-'));
-  },
-});
-const upload = multer({ storage: storage });
+// Multer ka sara setup yahan se hata diya gaya hai kyunke 
+// ab image/PDF upload ka kaam index.js (Cloudinary) kar raha hai.
 
 // --- ROUTES ---
-router.post("/upload", upload.single("image"), noticeController.uploadNotice);
+
+// 1. Add Notice (upload.single hata diya gaya hai)
+router.post("/upload", noticeController.uploadNotice);
+
+// 2. Get All Notices
 router.get("/all", noticeController.getNotices);
+
+// 3. Delete Notice
 router.delete("/delete/:id", noticeController.deleteNotice);
-router.put("/update/:id", upload.single("image"), noticeController.updateNotice);
+
+// 4. Update Notice (Yahan se bhi upload.single hata diya gaya hai)
+router.put("/update/:id", noticeController.updateNotice);
 
 module.exports = router;
