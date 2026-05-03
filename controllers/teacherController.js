@@ -13,17 +13,42 @@ exports.addTeacher = async (req, res) => {
   }
 };
 
-// 2. Assign Subject to Teacher (Admin karega - Edit Logic)
+// --- NAYA FUNCTION: Update Teacher Details ---
+exports.updateTeacher = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, password } = req.body;
+
+    let updateData = { name, email };
+
+    // Agar admin ne naya password bheja hai tab hi update karo
+    if (password) {
+      updateData.password = password; 
+    }
+
+    const updatedTeacher = await Teacher.findByIdAndUpdate(id, updateData, { new: true });
+
+    if (!updatedTeacher) {
+      return res.status(404).json({ error: "Teacher not found" });
+    }
+
+    res.status(200).json({ message: "Teacher Updated Successfully", data: updatedTeacher });
+  } catch (error) {
+    console.error("Update Teacher Error:", error);
+    res.status(500).json({ error: "Failed to update teacher" });
+  }
+};
+
+// 2. Assign Subject to Teacher (Admin karega)
 exports.assignCourse = async (req, res) => {
   try {
-    // Ab hum department aur semester bhi receive karenge
     const { teacherId, courseTitle, department, semester } = req.body; 
 
     const newCourse = new Course({
       title: courseTitle,
       teacherId: teacherId,
-      department: department, // Save kiya
-      semester: semester      // Save kiya
+      department: department, 
+      semester: semester      
     });
     
     await newCourse.save();
@@ -41,7 +66,6 @@ exports.assignCourse = async (req, res) => {
 // 3. Get All Teachers (Admin View)
 exports.getAllTeachers = async (req, res) => {
   try {
-    // .populate() use karenge taake assignedCourses ki details bhi ajayen
     const teachers = await Teacher.find().populate("assignedCourses");
     res.status(200).json(teachers);
   } catch (error) {
@@ -49,21 +73,20 @@ exports.getAllTeachers = async (req, res) => {
   }
 };
 
-// 4. Upload Lecture (Teacher karega)
-// Iske liye hum Course ki ID URL main bhejenge
+// 4. Upload Lecture (Vercel Ready)
 exports.uploadLecture = async (req, res) => {
   try {
-    const { courseId } = req.params; // Jis subject main upload karna hai
-    const { title } = req.body;
+    const { courseId } = req.params; 
+    // req.file ki jagah frontend se pdfUrl / fileUrl ayega
+    const { title, fileUrl } = req.body;
 
-    if (!req.file) return res.status(400).json({ error: "File is required" });
+    if (!fileUrl) return res.status(400).json({ error: "File URL is required" });
 
-    // Course dhoondo aur lecture push karo
     const course = await Course.findById(courseId);
     
     course.lectures.push({
       title: title,
-      pdfUrl: req.file.path // Image/PDF path
+      pdfUrl: fileUrl 
     });
 
     await course.save();
@@ -73,22 +96,21 @@ exports.uploadLecture = async (req, res) => {
   }
 };
 
-
-// 5. Upload Assignment
+// 5. Upload Assignment (Vercel Ready)
 exports.uploadAssignment = async (req, res) => {
   try {
     const { courseId } = req.params;
-    const { title, deadline } = req.body; // Assignment main Deadline bhi hoti hai
+    // req.file ki jagah frontend se pdfUrl ayega
+    const { title, deadline, fileUrl } = req.body; 
 
-    if (!req.file) return res.status(400).json({ error: "File is required" });
+    if (!fileUrl) return res.status(400).json({ error: "File URL is required" });
 
     const course = await Course.findById(courseId);
     
-    // Assignment array main push karenge
     course.assignments.push({
       title: title,
-      pdfUrl: req.file.path,
-      deadline: deadline // User deadline bhej sakta hai (Optional)
+      pdfUrl: fileUrl,
+      deadline: deadline 
     });
 
     await course.save();
@@ -98,16 +120,14 @@ exports.uploadAssignment = async (req, res) => {
   }
 };
 
-// 6. Delete Course (Assigned Subject ko delete karne ke liye)
+// 6. Delete Course
 exports.deleteCourse = async (req, res) => {
   try {
-    const { courseId } = req.params; // URL se courseId aayegi
-    const { teacherId } = req.body;  // Body se teacherId aayegi
+    const { courseId } = req.params; 
+    const { teacherId } = req.body;  
 
-    // 1. Course Database se us subject ko hamesha ke liye delete karo
     await Course.findByIdAndDelete(courseId);
 
-    // 2. Teacher ke "assignedCourses" array main se us course ki ID ko nikal do ($pull method use hota hai iske liye)
     if (teacherId) {
       await Teacher.findByIdAndUpdate(teacherId, {
         $pull: { assignedCourses: courseId }
@@ -121,20 +141,16 @@ exports.deleteCourse = async (req, res) => {
   }
 };
 
-// 6. Delete Teacher (Admin karega)
+// 7. Delete Teacher
 exports.deleteTeacher = async (req, res) => {
   try {
-    const { id } = req.params; // URL se teacher ki ID milegi
+    const { id } = req.params; 
     
-    // Database se teacher ko delete karo
     const deletedTeacher = await Teacher.findByIdAndDelete(id);
 
     if (!deletedTeacher) {
       return res.status(404).json({ error: "Teacher not found" });
     }
-
-    // Note: Agar aap chahte hain ke teacher delete hone par uske courses bhi delete ho jayen, 
-    // tou yahan await Course.deleteMany({ teacherId: id }); laga sakte hain.
 
     res.status(200).json({ message: "Teacher Deleted Successfully" });
   } catch (error) {

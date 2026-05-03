@@ -1,24 +1,21 @@
 const express = require("express");
 const router = express.Router();
-const multer = require("multer");
 const teacherController = require("../controllers/teacherController");
-
-// Multer Setup (Same as before)
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/"),
-  filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname)
-});
-const upload = multer({ storage: storage });
 
 // --- Admin Routes ---
 router.post("/add", teacherController.addTeacher);
-router.post("/assign-course", teacherController.assignCourse); // Subject dene ke liye
+router.post("/assign-course", teacherController.assignCourse); 
 router.get("/all", teacherController.getAllTeachers);
 
-// --- Teacher Routes (Content Upload) ---
-// Note: :courseId wo ID hai jo teacher ke subject click karne par milegi
-router.post("/upload-lecture/:courseId", upload.single("file"), teacherController.uploadLecture);
-router.post("/upload-assignment/:courseId", upload.single("file"), teacherController.uploadAssignment);
+// NAYA ROUTE: Teacher Update Karne Ke Liye
+router.put("/update/:id", teacherController.updateTeacher);
+
+// --- Teacher Routes (Content Upload - Vercel Ready) ---
+// Multer hata diya kyunke ab frontend direct Cloudinary par bhej kar sirf URL dega
+router.post("/upload-lecture/:courseId", teacherController.uploadLecture);
+router.post("/upload-assignment/:courseId", teacherController.uploadAssignment);
+
+// Delete Routes
 router.delete("/delete-course/:courseId", teacherController.deleteCourse);
 router.delete("/delete/:id", teacherController.deleteTeacher);
 
