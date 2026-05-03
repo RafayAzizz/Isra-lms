@@ -141,6 +141,22 @@ exports.deleteCourse = async (req, res) => {
   }
 };
 
+// Login Teacher
+exports.loginTeacher = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const teacher = await Teacher.findOne({ email });
+
+    if (!teacher || teacher.password !== password) {
+      return res.status(400).json({ error: "Invalid Email or Password" });
+    }
+
+    res.status(200).json({ message: "Login Successful", data: teacher });
+  } catch (error) {
+    res.status(500).json({ error: "Server Error during login" });
+  }
+};
+
 // 7. Delete Teacher
 exports.deleteTeacher = async (req, res) => {
   try {

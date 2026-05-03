@@ -18,5 +18,6 @@ router.post("/upload-assignment/:courseId", teacherController.uploadAssignment);
 // Delete Routes
 router.delete("/delete-course/:courseId", teacherController.deleteCourse);
 router.delete("/delete/:id", teacherController.deleteTeacher);
+router.post("/login", teacherController.loginTeacher);
 
 module.exports = router;

@@ -1,6 +1,25 @@
 const Course = require("../models/Course");
 const Student = require("../models/Student"); // Student Model import kiya
 
+// Login Student
+exports.loginStudent = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    // Student email ya Roll Number dono se login kar sakta hai
+    const student = await Student.findOne({
+      $or: [{ email: email }, { rollNumber: email.toUpperCase() }]
+    });
+
+    if (!student || student.password !== password) {
+      return res.status(400).json({ error: "Invalid Email/Roll Number or Password" });
+    }
+
+    res.status(200).json({ message: "Login Successful", data: student });
+  } catch (error) {
+    res.status(500).json({ error: "Server Error during login" });
+  }
+};
 // 1. Register New Student (Sign Up)
 exports.registerStudent = async (req, res) => {
   try {
