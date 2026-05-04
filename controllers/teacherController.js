@@ -180,3 +180,18 @@ exports.deleteTeacher = async (req, res) => {
     res.status(500).json({ error: "Failed to delete teacher" });
   }
 };
+
+// --- NAYA FUNCTION: Get Specific Teacher's Courses ---
+exports.getTeacherCourses = async (req, res) => {
+  try {
+    const { teacherId } = req.params;
+    
+    // Database main wo courses dhoondo jinki teacherId is teacher se match kare
+    const courses = await Course.find({ teacherId: teacherId }).populate("teacherId", "name");
+    
+    res.status(200).json(courses);
+  } catch (error) {
+    console.error("Fetch Teacher Courses Error:", error);
+    res.status(500).json({ error: "Failed to fetch teacher courses" });
+  }
+};
