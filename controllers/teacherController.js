@@ -1,5 +1,6 @@
 const Teacher = require("../models/Teacher");
 const Course = require("../models/Course");
+const cloudinary = require("cloudinary").v2;
 
 // 1. Add New Teacher (Admin karega)
 exports.addTeacher = async (req, res) => {
@@ -76,22 +77,29 @@ exports.getAllTeachers = async (req, res) => {
 // 4. Upload Lecture (Vercel Ready)
 exports.uploadLecture = async (req, res) => {
   try {
-    const { courseId } = req.params; 
-    // req.file ki jagah frontend se pdfUrl / fileUrl ayega
-    const { title, fileUrl } = req.body;
+    const { courseId } = req.params;
+    const { title } = req.body;
 
-    if (!fileUrl) return res.status(400).json({ error: "File URL is required" });
+    // Check agar file aayi hai ya nahi
+    if (!req.file) return res.status(400).json({ error: "PDF File is required" });
+
+    // Cloudinary par PDF upload karna
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: "isra_lms/materials", // Is naye folder main PDFs jayengi
+      resource_type: "auto"         // 'auto' lagana zaroori hai PDF/Docs ke liye
+    });
 
     const course = await Course.findById(courseId);
     
     course.lectures.push({
       title: title,
-      pdfUrl: fileUrl 
+      pdfUrl: result.secure_url // Cloudinary ka pakka link yahan save hoga
     });
 
     await course.save();
-    res.status(200).json({ message: "Lecture Uploaded!", data: course });
+    res.status(200).json({ message: "Lecture Uploaded Successfully!", data: course });
   } catch (error) {
+    console.error("Upload Lecture Error:", error);
     res.status(500).json({ error: "Failed to upload lecture" });
   }
 };
@@ -100,22 +108,28 @@ exports.uploadLecture = async (req, res) => {
 exports.uploadAssignment = async (req, res) => {
   try {
     const { courseId } = req.params;
-    // req.file ki jagah frontend se pdfUrl ayega
-    const { title, deadline, fileUrl } = req.body; 
+    const { title, deadline } = req.body;
 
-    if (!fileUrl) return res.status(400).json({ error: "File URL is required" });
+    if (!req.file) return res.status(400).json({ error: "PDF File is required" });
+
+    // Cloudinary par PDF upload karna
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: "isra_lms/materials",
+      resource_type: "auto"
+    });
 
     const course = await Course.findById(courseId);
     
     course.assignments.push({
       title: title,
-      pdfUrl: fileUrl,
-      deadline: deadline 
+      deadline: deadline,
+      pdfUrl: result.secure_url // Cloudinary ka pakka link
     });
 
     await course.save();
-    res.status(200).json({ message: "Assignment Uploaded!", data: course });
+    res.status(200).json({ message: "Assignment Uploaded Successfully!", data: course });
   } catch (error) {
+    console.error("Upload Assignment Error:", error);
     res.status(500).json({ error: "Failed to upload assignment" });
   }
 };
