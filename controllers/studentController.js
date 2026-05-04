@@ -43,17 +43,25 @@ exports.registerStudent = async (req, res) => {
   }
 };
 
-// 2. Get Courses by Dept & Semester (Aapka purana code)
+/// Get Courses by Dept & Semester (Bulletproof Filter)
 exports.getStudentCourses = async (req, res) => {
   try {
     const { dept, sem } = req.query;
+
+    // Agar frontend ne dept ya sem nahi bheja tou error throw karo
+    if (!dept || !sem) {
+      return res.status(400).json({ error: "Department and Semester are required" });
+    }
+
+    // $regex aur "i" ka matlab hai Case-Insensitive search (CS aur cs dono match honge)
     const courses = await Course.find({ 
-      department: dept, 
-      semester: sem 
-    }).populate("teacherId", "name");
+      department: { $regex: new RegExp(`^${dept.trim()}$`, "i") }, 
+      semester: { $regex: new RegExp(`^${sem.trim()}$`, "i") } 
+    }).populate("teacherId", "name"); // Teacher ka naam bhi sath layen
 
     res.status(200).json(courses);
   } catch (error) {
+    console.error("Fetch Courses Error:", error);
     res.status(500).json({ error: "Failed to fetch courses" });
   }
 };
