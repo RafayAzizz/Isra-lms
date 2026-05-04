@@ -158,17 +158,23 @@ exports.loginTeacher = async (req, res) => {
 };
 
 // 7. Delete Teacher
+// 7. Delete Teacher (with Cascading Delete for Courses)
 exports.deleteTeacher = async (req, res) => {
   try {
     const { id } = req.params; 
     
+    // 1. Sab se pehle database se teacher ko delete karo
     const deletedTeacher = await Teacher.findByIdAndDelete(id);
 
     if (!deletedTeacher) {
       return res.status(404).json({ error: "Teacher not found" });
     }
 
-    res.status(200).json({ message: "Teacher Deleted Successfully" });
+    // 2. YAHAN HAI ASAL JADOO: 
+    // Ab Course collection main jao aur wo tamam courses ura do jinki teacherId is delete hone wale teacher ki id se match karti ho!
+    await Course.deleteMany({ teacherId: id });
+
+    res.status(200).json({ message: "Teacher and all their assigned courses deleted successfully!" });
   } catch (error) {
     console.error("Error deleting teacher:", error);
     res.status(500).json({ error: "Failed to delete teacher" });
