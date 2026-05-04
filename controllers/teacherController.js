@@ -195,3 +195,81 @@ exports.getTeacherCourses = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch teacher courses" });
   }
 };
+
+// --- GET SINGLE COURSE DETAILS (For both Teacher and Student) ---
+exports.getCourseDetails = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const course = await Course.findById(courseId);
+    if (!course) return res.status(404).json({ error: "Course not found" });
+    
+    res.status(200).json(course);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch course details" });
+  }
+};
+
+// --- DELETE LECTURE ---
+exports.deleteLecture = async (req, res) => {
+  try {
+    const { courseId, lectureId } = req.params;
+    // $pull se hum array ke andar se specific ID wala item nikal dete hain
+    await Course.findByIdAndUpdate(courseId, {
+      $pull: { lectures: { _id: lectureId } }
+    });
+    res.status(200).json({ message: "Lecture deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete lecture" });
+  }
+};
+
+// --- DELETE ASSIGNMENT ---
+exports.deleteAssignment = async (req, res) => {
+  try {
+    const { courseId, assignmentId } = req.params;
+    await Course.findByIdAndUpdate(courseId, {
+      $pull: { assignments: { _id: assignmentId } }
+    });
+    res.status(200).json({ message: "Assignment deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete assignment" });
+  }
+};
+
+// --- EDIT LECTURE ---
+exports.editLecture = async (req, res) => {
+  try {
+    const { courseId, lectureId } = req.params;
+    const { title, fileUrl } = req.body;
+
+    // "lectures.$" ka matlab hai ke array main jo item match hua hai, sirf usi ko update karo
+    await Course.findOneAndUpdate(
+      { _id: courseId, "lectures._id": lectureId },
+      { $set: { "lectures.$.title": title, "lectures.$.pdfUrl": fileUrl } }
+    );
+    res.status(200).json({ message: "Lecture updated successfully" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update lecture" });
+  }
+};
+
+// --- EDIT ASSIGNMENT ---
+exports.editAssignment = async (req, res) => {
+  try {
+    const { courseId, assignmentId } = req.params;
+    const { title, fileUrl, deadline } = req.body;
+
+    await Course.findOneAndUpdate(
+      { _id: courseId, "assignments._id": assignmentId },
+      { $set: { 
+          "assignments.$.title": title, 
+          "assignments.$.pdfUrl": fileUrl,
+          "assignments.$.deadline": deadline 
+        } 
+      }
+    );
+    res.status(200).json({ message: "Assignment updated successfully" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update assignment" });
+  }
+};

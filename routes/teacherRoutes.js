@@ -20,5 +20,15 @@ router.delete("/delete-course/:courseId", teacherController.deleteCourse);
 router.delete("/delete/:id", teacherController.deleteTeacher);
 router.post("/login", teacherController.loginTeacher);
 router.get("/my-courses/:teacherId", teacherController.getTeacherCourses);
+// Get course data
+router.get("/course/:courseId", teacherController.getCourseDetails);
+
+// Edit/Delete Lectures
+router.delete("/delete-lecture/:courseId/:lectureId", teacherController.deleteLecture);
+router.put("/edit-lecture/:courseId/:lectureId", teacherController.editLecture);
+
+// Edit/Delete Assignments
+router.delete("/delete-assignment/:courseId/:assignmentId", teacherController.deleteAssignment);
+router.put("/edit-assignment/:courseId/:assignmentId", teacherController.editAssignment);
 
 module.exports = router;
