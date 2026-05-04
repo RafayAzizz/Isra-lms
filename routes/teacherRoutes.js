@@ -36,8 +36,11 @@ router.post("/upload-assignment/:courseId", upload.single("file"), teacherContro
 
 // --- Edit & Delete Material Routes ---
 router.delete("/delete-lecture/:courseId/:lectureId", teacherController.deleteLecture);
-router.put("/edit-lecture/:courseId/:lectureId", teacherController.editLecture);
+// YAHAN UPLOAD.SINGLE ADD KIYA HAI TAQAY EDIT MAIN BHI FILE AYE
+router.put("/edit-lecture/:courseId/:lectureId", upload.single("file"), teacherController.editLecture);
+
 router.delete("/delete-assignment/:courseId/:assignmentId", teacherController.deleteAssignment);
-router.put("/edit-assignment/:courseId/:assignmentId", teacherController.editAssignment);
+// YAHAN UPLOAD.SINGLE ADD KIYA HAI TAQAY EDIT MAIN BHI FILE AYE
+router.put("/edit-assignment/:courseId/:assignmentId", upload.single("file"), teacherController.editAssignment);
 
 module.exports = router;

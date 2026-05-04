@@ -2,6 +2,15 @@ const Teacher = require("../models/Teacher");
 const Course = require("../models/Course");
 const cloudinary = require("cloudinary").v2;
 
+// Cloudinary URL se File ID nikalne ka helper function (Delete karne ke liye)
+const extractPublicId = (url) => {
+  try {
+    return url.split(/v\d+\//)[1].split('.')[0];
+  } catch (error) {
+    return null;
+  }
+};
+
 // 1. Add New Teacher (Admin karega)
 exports.addTeacher = async (req, res) => {
   try {
@@ -14,44 +23,28 @@ exports.addTeacher = async (req, res) => {
   }
 };
 
-// --- NAYA FUNCTION: Update Teacher Details ---
+// --- Update Teacher Details ---
 exports.updateTeacher = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, email, password } = req.body;
-
     let updateData = { name, email };
-
-    // Agar admin ne naya password bheja hai tab hi update karo
-    if (password) {
-      updateData.password = password; 
-    }
+    if (password) updateData.password = password; 
 
     const updatedTeacher = await Teacher.findByIdAndUpdate(id, updateData, { new: true });
-
-    if (!updatedTeacher) {
-      return res.status(404).json({ error: "Teacher not found" });
-    }
+    if (!updatedTeacher) return res.status(404).json({ error: "Teacher not found" });
 
     res.status(200).json({ message: "Teacher Updated Successfully", data: updatedTeacher });
   } catch (error) {
-    console.error("Update Teacher Error:", error);
     res.status(500).json({ error: "Failed to update teacher" });
   }
 };
 
-// 2. Assign Subject to Teacher (Admin karega)
+// 2. Assign Subject to Teacher
 exports.assignCourse = async (req, res) => {
   try {
     const { teacherId, courseTitle, department, semester } = req.body; 
-
-    const newCourse = new Course({
-      title: courseTitle,
-      teacherId: teacherId,
-      department: department, 
-      semester: semester      
-    });
-    
+    const newCourse = new Course({ title: courseTitle, teacherId, department, semester });
     await newCourse.save();
 
     const teacher = await Teacher.findById(teacherId);
@@ -64,7 +57,7 @@ exports.assignCourse = async (req, res) => {
   }
 };
 
-// 3. Get All Teachers (Admin View)
+// 3. Get All Teachers
 exports.getAllTeachers = async (req, res) => {
   try {
     const teachers = await Teacher.find().populate("assignedCourses");
@@ -74,62 +67,44 @@ exports.getAllTeachers = async (req, res) => {
   }
 };
 
-// 4. Upload Lecture (Vercel Ready)
+// 4. Upload Lecture
 exports.uploadLecture = async (req, res) => {
   try {
     const { courseId } = req.params;
     const { title } = req.body;
-
-    // Check agar file aayi hai ya nahi
     if (!req.file) return res.status(400).json({ error: "PDF File is required" });
 
-    // Cloudinary par PDF upload karna
     const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: "isra_lms/materials", // Is naye folder main PDFs jayengi
-      resource_type: "auto"         // 'auto' lagana zaroori hai PDF/Docs ke liye
+      folder: "isra_lms/materials", resource_type: "auto"
     });
 
     const course = await Course.findById(courseId);
-    
-    course.lectures.push({
-      title: title,
-      pdfUrl: result.secure_url // Cloudinary ka pakka link yahan save hoga
-    });
-
+    course.lectures.push({ title, pdfUrl: result.secure_url });
     await course.save();
+
     res.status(200).json({ message: "Lecture Uploaded Successfully!", data: course });
   } catch (error) {
-    console.error("Upload Lecture Error:", error);
     res.status(500).json({ error: "Failed to upload lecture" });
   }
 };
 
-// 5. Upload Assignment (Vercel Ready)
+// 5. Upload Assignment
 exports.uploadAssignment = async (req, res) => {
   try {
     const { courseId } = req.params;
     const { title, deadline } = req.body;
-
     if (!req.file) return res.status(400).json({ error: "PDF File is required" });
 
-    // Cloudinary par PDF upload karna
     const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: "isra_lms/materials",
-      resource_type: "auto"
+      folder: "isra_lms/materials", resource_type: "auto"
     });
 
     const course = await Course.findById(courseId);
-    
-    course.assignments.push({
-      title: title,
-      deadline: deadline,
-      pdfUrl: result.secure_url // Cloudinary ka pakka link
-    });
-
+    course.assignments.push({ title, deadline, pdfUrl: result.secure_url });
     await course.save();
+
     res.status(200).json({ message: "Assignment Uploaded Successfully!", data: course });
   } catch (error) {
-    console.error("Upload Assignment Error:", error);
     res.status(500).json({ error: "Failed to upload assignment" });
   }
 };
@@ -141,16 +116,11 @@ exports.deleteCourse = async (req, res) => {
     const { teacherId } = req.body;  
 
     await Course.findByIdAndDelete(courseId);
-
     if (teacherId) {
-      await Teacher.findByIdAndUpdate(teacherId, {
-        $pull: { assignedCourses: courseId }
-      });
+      await Teacher.findByIdAndUpdate(teacherId, { $pull: { assignedCourses: courseId } });
     }
-
     res.status(200).json({ message: "Course Deleted Successfully" });
   } catch (error) {
-    console.error("Error deleting course:", error);
     res.status(500).json({ error: "Failed to delete course" });
   }
 };
@@ -164,102 +134,113 @@ exports.loginTeacher = async (req, res) => {
     if (!teacher || teacher.password !== password) {
       return res.status(400).json({ error: "Invalid Email or Password" });
     }
-
     res.status(200).json({ message: "Login Successful", data: teacher });
   } catch (error) {
     res.status(500).json({ error: "Server Error during login" });
   }
 };
 
-// 7. Delete Teacher
 // 7. Delete Teacher (with Cascading Delete for Courses)
 exports.deleteTeacher = async (req, res) => {
   try {
     const { id } = req.params; 
-    
-    // 1. Sab se pehle database se teacher ko delete karo
     const deletedTeacher = await Teacher.findByIdAndDelete(id);
 
-    if (!deletedTeacher) {
-      return res.status(404).json({ error: "Teacher not found" });
-    }
-
-    // 2. YAHAN HAI ASAL JADOO: 
-    // Ab Course collection main jao aur wo tamam courses ura do jinki teacherId is delete hone wale teacher ki id se match karti ho!
+    if (!deletedTeacher) return res.status(404).json({ error: "Teacher not found" });
     await Course.deleteMany({ teacherId: id });
 
     res.status(200).json({ message: "Teacher and all their assigned courses deleted successfully!" });
   } catch (error) {
-    console.error("Error deleting teacher:", error);
     res.status(500).json({ error: "Failed to delete teacher" });
   }
 };
 
-// --- NAYA FUNCTION: Get Specific Teacher's Courses ---
+// --- Get Specific Teacher's Courses ---
 exports.getTeacherCourses = async (req, res) => {
   try {
     const { teacherId } = req.params;
-    
-    // Database main wo courses dhoondo jinki teacherId is teacher se match kare
     const courses = await Course.find({ teacherId: teacherId }).populate("teacherId", "name");
-    
     res.status(200).json(courses);
   } catch (error) {
-    console.error("Fetch Teacher Courses Error:", error);
     res.status(500).json({ error: "Failed to fetch teacher courses" });
   }
 };
 
-// --- GET SINGLE COURSE DETAILS (For both Teacher and Student) ---
+// --- GET SINGLE COURSE DETAILS ---
 exports.getCourseDetails = async (req, res) => {
   try {
     const { courseId } = req.params;
     const course = await Course.findById(courseId);
     if (!course) return res.status(404).json({ error: "Course not found" });
-    
     res.status(200).json(course);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch course details" });
   }
 };
 
-// --- DELETE LECTURE ---
+// --- DELETE LECTURE (Cloudinary + DB) ---
 exports.deleteLecture = async (req, res) => {
   try {
     const { courseId, lectureId } = req.params;
-    // $pull se hum array ke andar se specific ID wala item nikal dete hain
-    await Course.findByIdAndUpdate(courseId, {
-      $pull: { lectures: { _id: lectureId } }
-    });
+    
+    const course = await Course.findById(courseId);
+    const lecture = course.lectures.find(l => l._id.toString() === lectureId);
+
+    if (lecture && lecture.pdfUrl) {
+      const publicId = extractPublicId(lecture.pdfUrl);
+      if (publicId) await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+    }
+
+    await Course.findByIdAndUpdate(courseId, { $pull: { lectures: { _id: lectureId } } });
     res.status(200).json({ message: "Lecture deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: "Failed to delete lecture" });
   }
 };
 
-// --- DELETE ASSIGNMENT ---
+// --- DELETE ASSIGNMENT (Cloudinary + DB) ---
 exports.deleteAssignment = async (req, res) => {
   try {
     const { courseId, assignmentId } = req.params;
-    await Course.findByIdAndUpdate(courseId, {
-      $pull: { assignments: { _id: assignmentId } }
-    });
+    
+    const course = await Course.findById(courseId);
+    const assignment = course.assignments.find(a => a._id.toString() === assignmentId);
+
+    if (assignment && assignment.pdfUrl) {
+      const publicId = extractPublicId(assignment.pdfUrl);
+      if (publicId) await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+    }
+
+    await Course.findByIdAndUpdate(courseId, { $pull: { assignments: { _id: assignmentId } } });
     res.status(200).json({ message: "Assignment deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: "Failed to delete assignment" });
   }
 };
 
-// --- EDIT LECTURE ---
+// --- EDIT LECTURE (Replace PDF if new one is uploaded) ---
 exports.editLecture = async (req, res) => {
   try {
     const { courseId, lectureId } = req.params;
-    const { title, fileUrl } = req.body;
+    const { title } = req.body;
 
-    // "lectures.$" ka matlab hai ke array main jo item match hua hai, sirf usi ko update karo
+    const course = await Course.findById(courseId);
+    const lecture = course.lectures.find(l => l._id.toString() === lectureId);
+
+    let newPdfUrl = lecture.pdfUrl;
+
+    if (req.file) {
+      if (lecture.pdfUrl) {
+        const publicId = extractPublicId(lecture.pdfUrl);
+        if (publicId) await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+      }
+      const result = await cloudinary.uploader.upload(req.file.path, { folder: "isra_lms/materials", resource_type: "auto" });
+      newPdfUrl = result.secure_url;
+    }
+
     await Course.findOneAndUpdate(
       { _id: courseId, "lectures._id": lectureId },
-      { $set: { "lectures.$.title": title, "lectures.$.pdfUrl": fileUrl } }
+      { $set: { "lectures.$.title": title, "lectures.$.pdfUrl": newPdfUrl } }
     );
     res.status(200).json({ message: "Lecture updated successfully" });
   } catch (error) {
@@ -267,20 +248,29 @@ exports.editLecture = async (req, res) => {
   }
 };
 
-// --- EDIT ASSIGNMENT ---
+// --- EDIT ASSIGNMENT (Replace PDF if new one is uploaded) ---
 exports.editAssignment = async (req, res) => {
   try {
     const { courseId, assignmentId } = req.params;
-    const { title, fileUrl, deadline } = req.body;
+    const { title, deadline } = req.body;
+
+    const course = await Course.findById(courseId);
+    const assignment = course.assignments.find(a => a._id.toString() === assignmentId);
+
+    let newPdfUrl = assignment.pdfUrl;
+
+    if (req.file) {
+      if (assignment.pdfUrl) {
+        const publicId = extractPublicId(assignment.pdfUrl);
+        if (publicId) await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+      }
+      const result = await cloudinary.uploader.upload(req.file.path, { folder: "isra_lms/materials", resource_type: "auto" });
+      newPdfUrl = result.secure_url;
+    }
 
     await Course.findOneAndUpdate(
       { _id: courseId, "assignments._id": assignmentId },
-      { $set: { 
-          "assignments.$.title": title, 
-          "assignments.$.pdfUrl": fileUrl,
-          "assignments.$.deadline": deadline 
-        } 
-      }
+      { $set: { "assignments.$.title": title, "assignments.$.deadline": deadline, "assignments.$.pdfUrl": newPdfUrl } }
     );
     res.status(200).json({ message: "Assignment updated successfully" });
   } catch (error) {
