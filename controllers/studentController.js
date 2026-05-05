@@ -48,20 +48,28 @@ exports.getStudentCourses = async (req, res) => {
   try {
     const { dept, sem } = req.query;
 
-    // Agar frontend ne dept ya sem nahi bheja tou error throw karo
-    if (!dept || !sem) {
-      return res.status(400).json({ error: "Department and Semester are required" });
-    }
-
-    // $regex aur "i" ka matlab hai Case-Insensitive search (CS aur cs dono match honge)
+    // 1. Pehle student ke department aur semester ke courses nikalen
+    // .lean() lagana zaroori hai taake hum data main tabdeeli kar sakein
     const courses = await Course.find({ 
-      department: { $regex: new RegExp(`^${dept.trim()}$`, "i") }, 
-      semester: { $regex: new RegExp(`^${sem.trim()}$`, "i") } 
-    }).populate("teacherId", "name"); // Teacher ka naam bhi sath layen
+      department: { $regex: new RegExp(`^${dept.trim()}$`, 'i') }, 
+      semester: { $regex: new RegExp(`^${sem.trim()}$`, 'i') } 
+    }).populate("teacherId", "name").lean();
 
-    res.status(200).json(courses);
+    // 2. Ab check karein ke is makhsoos Dept aur Sem main total kitne students hain
+    const count = await Student.countDocuments({
+      department: { $regex: new RegExp(`^${dept.trim()}$`, 'i') },
+      semester: { $regex: new RegExp(`^${sem.trim()}$`, 'i') }
+    });
+
+    // 3. Har course ke data main wo ginti (count) add kar dein
+    const coursesWithCount = courses.map(course => ({
+      ...course,
+      studentCount: count // Yeh wo ginti hai jo student ko nazar aayegi
+    }));
+
+    res.status(200).json(coursesWithCount);
   } catch (error) {
-    console.error("Fetch Courses Error:", error);
-    res.status(500).json({ error: "Failed to fetch courses" });
+    console.error("Fetch Student Courses Error:", error);
+    res.status(500).json({ error: "Failed to fetch student courses" });
   }
 };
