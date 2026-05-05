@@ -73,3 +73,55 @@ exports.getStudentCourses = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch student courses" });
   }
 };
+
+
+// --- GET ALL STUDENTS (Admin/React Panel ke liye) ---
+exports.getAllStudents = async (req, res) => {
+  try {
+    const students = await Student.find().sort({ createdAt: -1 }); // Naye students pehle aayenge
+    res.status(200).json(students);
+  } catch (error) {
+    console.error("Fetch All Students Error:", error);
+    res.status(500).json({ error: "Failed to fetch students" });
+  }
+};
+
+// --- UPDATE STUDENT (Edit karne ke liye) ---
+exports.updateStudent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fullName, email, rollNumber, department } = req.body;
+
+    const updatedStudent = await Student.findByIdAndUpdate(
+      id,
+      { fullName, email, rollNumber, department },
+      { new: true } // Update hone ke baad naya data wapas karega
+    );
+
+    if (!updatedStudent) {
+      return res.status(404).json({ error: "Student not found" });
+    }
+
+    res.status(200).json({ message: "Student updated successfully", data: updatedStudent });
+  } catch (error) {
+    console.error("Update Student Error:", error);
+    res.status(500).json({ error: "Failed to update student" });
+  }
+};
+
+// --- DELETE STUDENT (Remove karne ke liye) ---
+exports.deleteStudent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const deletedStudent = await Student.findByIdAndDelete(id);
+    if (!deletedStudent) {
+      return res.status(404).json({ error: "Student not found" });
+    }
+
+    res.status(200).json({ message: "Student deleted successfully" });
+  } catch (error) {
+    console.error("Delete Student Error:", error);
+    res.status(500).json({ error: "Failed to delete student" });
+  }
+};
