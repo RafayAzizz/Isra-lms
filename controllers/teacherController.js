@@ -1,6 +1,7 @@
 const Teacher = require("../models/Teacher");
 const Course = require("../models/Course");
 const cloudinary = require("cloudinary").v2;
+const Student = require("../models/Student");
 
 // Cloudinary URL se File ID nikalne ka helper function (Delete karne ke liye)
 const extractPublicId = (url) => {
@@ -156,12 +157,28 @@ exports.deleteTeacher = async (req, res) => {
 };
 
 // --- Get Specific Teacher's Courses ---
+// --- NAYA FUNCTION: Get Specific Teacher's Courses (with Student Count) ---
 exports.getTeacherCourses = async (req, res) => {
   try {
     const { teacherId } = req.params;
-    const courses = await Course.find({ teacherId: teacherId }).populate("teacherId", "name");
+    
+    // .lean() lagana zaroori hai taake hum mongoose object main naya data add kar sakein
+    let courses = await Course.find({ teacherId: teacherId }).populate("teacherId", "name").lean();
+    
+    // Har course ke andar loop chala kar check karein ke us department/semester main kitne students hain
+    for (let i = 0; i < courses.length; i++) {
+      const studentCount = await Student.countDocuments({ 
+        department: courses[i].department, 
+        semester: courses[i].semester 
+      });
+      
+      // Course ke data main 'studentCount' add kar do
+      courses[i].studentCount = studentCount; 
+    }
+    
     res.status(200).json(courses);
   } catch (error) {
+    console.error("Fetch Teacher Courses Error:", error);
     res.status(500).json({ error: "Failed to fetch teacher courses" });
   }
 };
